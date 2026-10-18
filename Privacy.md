@@ -19,3 +19,5 @@ The Activity runs inside Discord, which handles your account and voice session u
 ## Changes and contact
 
 This policy may be updated; the date above will change. Questions: kaywhocreates@gmail.com
+
+[Terms of Use](Terms.md)
