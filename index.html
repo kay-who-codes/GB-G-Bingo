@@ -75,15 +75,15 @@
     <div id="banner"></div>
     <div id="board"></div>
     <div id="controls">
-      <button class="ctl" id="reset">New card</button>
+      <button class="ctl" id="reset">New Hand</button>
       <span id="count"></span>
-      <details id="authors" hidden><summary class="ctl">Authors</summary><div id="authorList"></div></details>
+      <details id="authors" hidden><summary class="ctl">Memebers</summary><div id="authorList"></div></details>
       <button class="ctl" id="mute" aria-label="Toggle sound">🔊</button>
     </div>
     <div class="confetti" id="confetti"></div>
   </div>
   <script type="module">
-import * as cfg from "./phrases.js";
+import * as cfg from "./phrases.js?v=2";
 const { PHRASES, TITLE, SOUNDS } = cfg;
 const SHOW_AUTHORS = cfg.SHOW_AUTHORS !== false;
 const VOLUME = cfg.VOLUME ?? 0.7;
