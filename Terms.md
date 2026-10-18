@@ -14,7 +14,7 @@ The phrases in the game come from the developer and their community and are for 
 
 ## No data
 
-The developer has no access to your sessions or data (see the [Privacy Policy](privacy.md)).
+The developer has no access to your sessions or data (see the [Privacy Policy](Privacy.md)).
 
 ## No warranty
 
