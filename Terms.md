@@ -24,4 +24,4 @@ The app is provided "as is", with no promises that it will work, stay available,
 
 The app or these terms may change or end at any time. Questions: [YOUR CONTACT EMAIL OR DISCORD NAME].
 
-[Privacy Policy](privacy.md)
+[Privacy Policy](Privacy.md)
