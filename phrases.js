@@ -1,6 +1,6 @@
   // ===== DEVELOPER CONFIG =====
 // Discord Developer Portal > your app > Application ID
-export const CLIENT_ID = "PASTE_APPLICATION_ID_HERE";
+export const CLIENT_ID = "1560411510168232026";
 
 export const TITLE = "GB&G Bingo";
 
