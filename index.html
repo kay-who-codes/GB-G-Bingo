@@ -36,7 +36,8 @@
   .cell small { font-size:.72em; font-weight:500; opacity:.8; }
   .cell img { position:absolute; inset:4px; width:calc(100% - 8px); height:calc(100% - 8px); object-fit:contain; opacity:.55; transition:opacity .2s; }
   .cell.on img, .cell.win img { opacity:1; }
-  .cell.center { border-color:var(--pink); }
+  .cell.center { border-color:var(--pink); cursor:default; }
+  .cell.center:hover { transform:none; }
   .ctl { background:#0d0b1f; color:#fff; border:2px solid var(--pink); border-radius:10px; padding:9px 22px; font-size:15px; font-weight:800;
     letter-spacing:.05em; cursor:pointer; box-shadow:0 0 12px rgba(255,46,154,.55); text-shadow:0 0 6px var(--pink); font-family:inherit; }
   .ctl:hover, .ctl.confirm { background:var(--pink); box-shadow:0 0 20px var(--pink); }
@@ -148,23 +149,58 @@ LINES.push([0, 1, 3, 4].map(i => idx(i, i)));          // diagonal \ bridging th
 LINES.push([0, 1, 3, 4].map(i => idx(i, N - 1 - i)));  // diagonal / bridging the center
 
 // ---------- State ----------
-// Accepts "text", ["text", "author", weight], or { text, author, weight }.
-const ALL = PHRASES.map(p => Array.isArray(p) ? { text: p[0], author: p[1], weight: p[2] }
+// Authors can be an array (["Kitty", "Frosty"]) or a string ("Kitty & Frosty", "Kitty, Frosty", "Kitty + Frosty").
+const splitAuthors = a => (Array.isArray(a) ? a.map(String) : String(a || "").split(/\s*,\s*|\s+&\s+|\s+\+\s+/))
+  .map(s => s.trim()).filter(Boolean);
+const joinNames = l => l.length < 2 ? (l[0] || "") : l.slice(0, -1).join(", ") + " & " + l[l.length - 1];
+
+// Accepts "text", ["text", authors, weight], or { text, author(s), weight }.
+const ALL = PHRASES.map(p => Array.isArray(p) ? { text: p[0], authors: p[1], weight: p[2] }
   : typeof p === "string" ? { text: p } : p)
-  .map(p => ({ text: String(p.text), author: p.author || "", weight: Number(p.weight ?? 1) }))
+  .map(p => ({ text: String(p.text), authors: splitAuthors(p.authors ?? p.author), weight: Number(p.weight ?? 1) }))
   .filter(p => p.text && p.weight > 0);
 
 // Authors switched off by the developer (DISABLED_AUTHORS) never appear; players can switch off others in the Authors panel.
+// A phrase is left out if ANY of its authors is switched off.
 const DEV_OFF = new Set((cfg.DISABLED_AUTHORS || []).map(a => a.toLowerCase()));
-const ENABLED = ALL.filter(p => !DEV_OFF.has(p.author.toLowerCase()));
-const AUTHORS = [...new Set(ENABLED.map(p => p.author).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+const ENABLED = ALL.filter(p => !p.authors.some(a => DEV_OFF.has(a.toLowerCase())));
+const AUTHORS = [...new Set(ENABLED.flatMap(p => p.authors))].sort((a, b) => a.localeCompare(b));
 const CFG_COLORS = Object.fromEntries(Object.entries(cfg.AUTHOR_COLORS || {}).map(([k, v]) => [k.toLowerCase(), v]));
 const autoColors = {}; let ai = 0; // authors without a configured colour get a distinct generated one
 AUTHORS.forEach(a => { if (!CFG_COLORS[a.toLowerCase()]) autoColors[a] = `hsl(${Math.round((ai++ * 137.5 + 300) % 360)} 85% 62%)`; });
-const colorFor = a => (a && (CFG_COLORS[a.toLowerCase()] || autoColors[a])) || "#8a8fa8";
+const authorColor = a => CFG_COLORS[a.toLowerCase()] || autoColors[a] || "#8a8fa8";
+
+// Any CSS colour -> [r, g, b] (the canvas normalises names, hex, hsl() etc. to #rrggbb).
+const toRGB = (() => {
+  const cx = document.createElement("canvas").getContext("2d");
+  return col => {
+    cx.fillStyle = "#8a8fa8"; cx.fillStyle = col;
+    const m = /^#([0-9a-f]{6})$/i.exec(cx.fillStyle), n = m ? parseInt(m[1], 16) : 0x8a8fa8;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+})();
+// One author: their colour. Several: their average, with saturation restored so blends stay vivid. None: grey.
+const rgbToHsl = ([r, g, b]) => {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+};
+const colorForAuthors = list => {
+  if (!list.length) return "#8a8fa8";
+  if (list.length === 1) return authorColor(list[0]);
+  const rgb = list.map(a => toRGB(authorColor(a)));
+  const avg = [0, 1, 2].map(k => rgb.reduce((s, c) => s + c[k], 0) / rgb.length);
+  const [h, , l] = rgbToHsl(avg);
+  const s = rgb.map(c => rgbToHsl(c)[1]).reduce((a, b) => a + b, 0) / rgb.length;
+  return `hsl(${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
+};
+
 const OFF_KEY = "discord-bingo-off-authors";
 let off = new Set(); try { off = new Set(JSON.parse(localStorage.getItem(OFF_KEY) || "[]")); } catch {}
-const poolWithout = set => ENABLED.filter(p => !set.has(p.author));
+const poolWithout = set => ENABLED.filter(p => !p.authors.some(a => set.has(a)));
 const activePool = () => { const p = poolWithout(off); return p.length >= 24 ? p : ENABLED; };
 
 // Weighted random sample WITHOUT replacement (Efraimidis-Spirakis): higher weight = shows up more often.
@@ -174,13 +210,15 @@ function pick(n) {
     .sort(() => Math.random() - 0.5); // shuffle placement on the card
 }
 function newState() {
-  const p = pick(24).map(({ text, author }) => ({ text, author }));
-  const cells = Array.from({ length: 25 }, (_, i) => (i === CENTER ? null : p[i < CENTER ? i : i - 1] || { text: "", author: "" }));
-  return { cells, on: [], won: false };
+  const p = pick(24).map(({ text, authors }) => ({ text, authors }));
+  const cells = Array.from({ length: 25 }, (_, i) => (i === CENTER ? null : p[i < CENTER ? i : i - 1] || { text: "", authors: [] }));
+  return { cells, on: [CENTER], won: false }; // the center tile is always unlocked
 }
 let state;
 try { state = JSON.parse(localStorage.getItem(KEY)); } catch {}
 if (!state || state.cells?.length !== 25) state = newState();
+// Center tile is permanently unlocked (also fixes cards saved before this rule existed).
+if (!state.on.includes(CENTER)) { state.on.push(CENTER); state.won = winningCells().size > 0; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
 // ---------- Render ----------
@@ -205,12 +243,13 @@ function render() {
     el.className = "cell" + (i === CENTER ? " center" : "") + (on.has(i) ? " on" : "") + (win.has(i) ? " win" : "") + (near.has(i) && !on.has(i) ? " near" : "");
     if (i === CENTER) { el.innerHTML = '<img src="./Image.PNG" alt="Center">'; el.style.setProperty("--c", "#b794ff"); }
     else {
-      el.style.setProperty("--c", colorFor(text.author));
+      const au = text.authors || splitAuthors(text.author); // older saved cards used a single "author" string
+      el.style.setProperty("--c", colorForAuthors(au));
       const t = document.createElement("span"); t.textContent = text.text; el.appendChild(t);
       if (text.text.length > 70) el.classList.add("xlong"); else if (text.text.length > 40) el.classList.add("long");
-      if (SHOW_AUTHORS && text.author) { const s = document.createElement("small"); s.textContent = "— " + text.author; el.appendChild(s); }
+      if (SHOW_AUTHORS && au.length) { const s = document.createElement("small"); s.textContent = "— " + joinNames(au); el.appendChild(s); }
     }
-    el.onclick = () => toggle(i);
+    if (i === CENTER) el.setAttribute("aria-disabled", "true"); else el.onclick = () => toggle(i);
     board.appendChild(el);
   });
   banner.textContent = win.size ? "🎉 BINGO! 🎉" : "";
@@ -219,6 +258,7 @@ function render() {
 }
 
 function toggle(i) {
+  if (i === CENTER) return; // the center can never be locked
   const had = state.on.includes(i);
   state.on = had ? state.on.filter(x => x !== i) : [...state.on, i];
   const hasWin = winningCells().size > 0;
@@ -232,7 +272,7 @@ function toggle(i) {
 const resetBtn = document.getElementById("reset"); let resetTimer;
 resetBtn.onclick = () => {
   play("press");
-  if (state.on.length && !resetBtn.classList.contains("confirm")) {
+  if (state.on.length > 1 && !resetBtn.classList.contains("confirm")) {
     resetBtn.classList.add("confirm"); resetBtn.textContent = "Tap again";
     resetTimer = setTimeout(() => { resetBtn.classList.remove("confirm"); resetBtn.textContent = "New card"; }, 3000);
     return;
@@ -263,7 +303,7 @@ new ResizeObserver(() => fitText()).observe(board);
 const authorsBox = document.getElementById("authors"), list = document.getElementById("authorList");
 if (AUTHORS.length) {
   authorsBox.hidden = false;
-  const counts = {}; ENABLED.forEach(p => { counts[p.author] = (counts[p.author] || 0) + 1; });
+  const counts = {}; ENABLED.forEach(p => p.authors.forEach(a => { counts[a] = (counts[a] || 0) + 1; }));
   AUTHORS.forEach(a => {
     const label = document.createElement("label"), cb = document.createElement("input");
     cb.type = "checkbox"; cb.checked = !off.has(a);
@@ -274,11 +314,11 @@ if (AUTHORS.length) {
       try { localStorage.setItem(OFF_KEY, JSON.stringify([...off])); } catch {}
     };
     const name = document.createElement("span"); name.textContent = a;
-    const sw = document.createElement("i"); sw.className = "sw"; sw.style.background = sw.style.color = colorFor(a);
+    const sw = document.createElement("i"); sw.className = "sw"; sw.style.background = sw.style.color = authorColor(a);
     const n = document.createElement("small"); n.textContent = counts[a];
     label.append(cb, sw, name, n); list.appendChild(label);
   });
-  const note = document.createElement("div"); note.className = "note"; note.textContent = "Applies to your next new card.";
+  const note = document.createElement("div"); note.className = "note"; note.textContent = "Applies to your next new card. Phrases with several authors are left out if any of them is switched off.";
   list.appendChild(note);
 }
 render();
