@@ -39,7 +39,7 @@ export const AUTHOR_COLORS = {
 export const PHRASES = [
   ["That's right!", ["Goldy", "Frosty"], 1],
   ["Hakuna Matata", ["Frosty"], 1],
-  ["Hanzo, down!", ["Goldy", "Kyann"], 1],
+  ["Hanzo, down!", ["Frosty"], 1],
   ["Unbelievable", ["Everyone"], 1],
   ["I'll smoke to that", ["Goldy", "Frosty"], 1],
   ["I'll drink to that", ["Goldy", "Frosty"], 1],
