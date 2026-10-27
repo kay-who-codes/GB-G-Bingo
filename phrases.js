@@ -47,7 +47,7 @@ export const PHRASES = [
   ["What the fuck", ["Everyone"], 1],
   ["No way", ["Everyone"], 1],
   ["Holy shit!", ["Everyone"], 1], 
-  ["What the fuck", ["Everyone"], 1],
+  ["What the fuck!", ["Kitty"], 1],
   ["WOAH!", ["Everyone"], 1],
   ["Nae chance", ["Goldy", "Frosty"], 1],
   ["Oops", ["Everyone"], 1],
@@ -71,6 +71,8 @@ export const PHRASES = [
   ["Stella", ["Frosty"], 1],
   ["Fuck", ["Everyone"], 1],
   ["[dabs]", ["Everyone"], 1],
+  ["This is pissing me off", ["Kitty"], 1],
+  ["Was? (German)", ["Kitty"], 1],
 ];
  
 // Sounds: put these files in the sounds/ folder (missing files are skipped silently).
